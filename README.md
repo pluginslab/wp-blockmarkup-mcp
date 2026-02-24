@@ -4,6 +4,8 @@
 
 wp-blockmarkup-mcp is a local [MCP server](https://modelcontextprotocol.io/) that extracts, validates, and indexes every Gutenberg block from WordPress core, WooCommerce, or any block-based plugin you work with. It gives AI tools like Claude Code a verified database of block schemas, attributes, and validated markup examples to query — instead of relying on training data that hallucinates block structures, invents attributes, and produces markup that triggers "Attempt Block Recovery" in the editor.
 
+**Current validation results:** 121 core Gutenberg blocks indexed — 100% of static block markup examples pass both structural and save-function validation.
+
 ## Why This Exists
 
 AI assistants are increasingly used to generate WordPress content programmatically — building pages via the REST API, migrating content between platforms, populating headless frontends. But every AI model shares the same blind spot: **block markup comes from training data, not from the actual block source code**.
@@ -23,7 +25,7 @@ You only discover these problems when content lands in the editor and every bloc
 
 **Feed the AI real block data.** Instead of hoping the model remembers the right markup format, give it a verified database to query and validate against.
 
-wp-blockmarkup-mcp parses the actual source code of any block-based plugin, extracts every block's schema, and **validates generated markup against the block's own `save()` function** — the same validation the block editor uses internally. Your AI assistant queries this database before generating content, and can validate its output before pushing it.
+wp-blockmarkup-mcp parses the actual source code of any block-based plugin, extracts every block's schema, and **validates generated markup through a two-tier pipeline** — first using the official WordPress block parser for structural correctness, then verifying HTML output patterns against the block's `save()` function AST. Your AI assistant queries this database before generating content, and can validate its output before pushing it.
 
 This fits naturally into content generation workflows. When Claude Code (or any MCP-compatible assistant) needs to generate Gutenberg block markup, it:
 
@@ -52,7 +54,7 @@ No "Attempt Block Recovery". No broken pages. No guessing.
 - Support configuration (which features the block enables)
 - Validated markup examples for different feature combinations (basic, with colors, with typography, with spacing, full-featured)
 - Block type classification (static / dynamic / hybrid)
-- Validation status (verified / unverified / attributes-only)
+- Validation status (`verified` / `structural_only` / `attributes_only`)
 - Variations with pre-configured attributes and markup
 
 ## Quick Start
@@ -69,7 +71,7 @@ npm install
 Each `source:add` command clones the repo and indexes it automatically:
 
 ```bash
-# WordPress Gutenberg core blocks (115 blocks)
+# WordPress Gutenberg core blocks (121 blocks)
 npx wp-blocks source:add \
   --name gutenberg \
   --type github-public \
@@ -77,7 +79,7 @@ npx wp-blocks source:add \
   --branch trunk
 ```
 
-That's it. 115 core blocks extracted, validated, and indexed.
+That's it. 121 core blocks extracted, validated, and indexed — 60 static blocks fully verified, 61 dynamic blocks with validated attributes.
 
 ### Connect to Claude Code
 
@@ -176,14 +178,15 @@ npx wp-blocks source:add \
 ## CLI Reference
 
 ```
-npx wp-blocks source:add        Add a source and index it
-npx wp-blocks source:list       List all sources with indexed status
-npx wp-blocks source:remove     Remove a source and all its data
-npx wp-blocks index             Re-index all sources (or --source <name>)
-npx wp-blocks search <query>    Full-text search across blocks
-npx wp-blocks validate <markup> Validate block markup against save() function
-npx wp-blocks stats             Show block counts and validation coverage per source
-npx wp-blocks rebuild-index     Rebuild full-text search indexes
+npx wp-blocks source:add           Add a source and index it
+npx wp-blocks source:list          List all sources with indexed status
+npx wp-blocks source:remove <name> Remove a source and all its data
+npx wp-blocks index                Re-index all sources (or --source <name>)
+npx wp-blocks search <query>       Full-text search across blocks
+npx wp-blocks schema <block-name>  Show full schema for a block
+npx wp-blocks validate <markup>    Validate block markup structurally
+npx wp-blocks stats                Show block counts and validation coverage per source
+npx wp-blocks rebuild-index        Rebuild full-text search indexes
 ```
 
 ### CLI Examples
@@ -195,11 +198,14 @@ npx wp-blocks search "image gallery"
 # Search only blocks from a specific source
 npx wp-blocks search "product" --source woocommerce-blocks
 
-# Validate a block markup string
-npx wp-blocks validate '<!-- wp:paragraph {"align":"center"} --><p class="has-text-align-center">Hello</p><!-- /wp:paragraph -->'
+# Filter by block type
+npx wp-blocks search "posts" --type dynamic
 
 # Get full schema for a specific block
-npx wp-blocks search "core/heading" --exact
+npx wp-blocks schema core/paragraph
+
+# Validate block markup (use a file or quoted string)
+npx wp-blocks validate "$(cat my-block.html)"
 
 # Re-index a specific source after updates
 npx wp-blocks index --source gutenberg
@@ -225,16 +231,16 @@ Returns the complete schema for a block: full attribute table with types and def
 
 ### `get_block_markup`
 
-Returns validated markup examples for a block, optionally filtered by features used (color, typography, spacing, alignment). Every returned example has been validated against the block's actual `save()` function — if it's in the database, it won't trigger "Attempt Block Recovery".
+Returns markup examples for a block with their validation status, optionally filtered by features used (color, typography, spacing, alignment). Filter to `validated_only: true` to get only examples that passed both structural and save-function validation. Every `verified` example has been validated through both tiers of the pipeline.
 
 ### `validate_markup`
 
-Accepts raw block markup and validates it at multiple levels:
-- **Structural** — correct comment delimiter format, valid JSON attributes
-- **Schema** — attribute names and types match the block's registered schema
-- **Save function** — for static blocks, re-runs `save()` and compares output
+Accepts raw block markup and validates it using the official WordPress block parser (`@wordpress/block-serialization-default-parser`) — the same parser that runs inside WordPress itself:
+- **Structural** — parses comment delimiters exactly like WordPress does, validates JSON attributes
+- **Schema** — checks attribute names exist in the block's schema, verifies value types and enum constraints
+- **Block resolution** — confirms the block name exists in indexed sources, identifies dynamic vs. static blocks
 
-Returns `VALID`, `INVALID` with specific errors, or `ATTRIBUTES_ONLY` for dynamic blocks where only the comment delimiter can be validated.
+Returns `VALID`, `INVALID` with specific errors, or `VALID (attributes only)` for dynamic blocks.
 
 ### `list_block_attributes`
 
@@ -259,33 +265,50 @@ Searches block variations by name or description. Returns matching variations wi
    - **Static** — has `save()` returning JSX (full validation possible)
    - **Dynamic** — `save()` returns null, rendered by PHP (attribute validation only)
    - **Hybrid** — has both `save()` JSX and `render.php`
-5. **Markup generation** creates examples for each block with different feature combinations
+5. **Markup generation** creates examples for each block with different feature combinations (basic, alignment, color, typography, spacing, full-featured)
+6. **Validation** runs the two-tier pipeline on each generated example and stores the result
 
 ### Validation Pipeline
 
-Generated markup goes through tiered validation:
+Every generated markup example goes through a tiered validation pipeline during indexing. The validation status is stored per-example and rolled up to the block level.
 
-**Tier 1 — Structural (all blocks)**
-Uses `@wordpress/block-serialization-default-parser`:
-- Parses the comment delimiter format
-- Verifies attribute JSON is valid
-- Checks attribute keys exist in the block schema
-- Checks attribute value types match the schema
+**Tier 1 — Structural validation (all blocks)**
 
-**Tier 2 — Save function (static blocks only)**
-Uses `@wordpress/blocks` + `@wordpress/block-library` in Node.js with `browser-env`:
-- Registers the block's `save()` function
-- Parses the generated markup to extract `{ blockName, attrs, innerHTML }`
-- Re-runs `save(attrs)` and renders to static HTML
-- Compares the output against the stored innerHTML
-- **This is the same validation the block editor performs internally** — if it passes here, it will not trigger "Attempt Block Recovery" in the editor
+Uses `@wordpress/block-serialization-default-parser` — the exact same parser that runs inside WordPress:
+- Parses comment delimiters using WordPress's own tokenizer regex
+- Extracts block name, attributes JSON, and innerHTML
+- Validates attribute names exist in the block's schema (plus global attributes like `className`, `anchor`, `style`, `backgroundColor`, `textColor`, `fontSize`, `align`)
+- Type-checks attribute values against the schema (`string`, `number`, `boolean`, `array`, `object`)
+- Validates enum constraints where the schema defines allowed values
+- Recursively validates nested inner blocks
 
-**Tier 3 — Dynamic blocks**
-- Validates the comment delimiter + attributes only
+**Tier 2 — Save function pattern matching (static/hybrid blocks only)**
+
+Uses AST analysis of the block's `save()` function to verify the generated HTML matches expected patterns:
+- **Wrapper element** — confirms the HTML uses the correct root element (`<p>`, `<div>`, `<figure>`, etc.) matching what `save()` returns
+- **CSS class structure** — verifies `wp-block-*` classes, color classes (`has-{slug}-background-color`, `has-text-color`, `has-background`), font-size classes (`has-{slug}-font-size`), alignment classes
+- **Style attributes** — checks that spacing/typography attributes in the comment are reflected in the HTML `style` attribute (padding, margin, line-height)
+- **InnerBlocks** — validates that `InnerBlocks.Content` usage in `save()` is consistent with nested block presence
+
+This approach validates the output patterns without requiring the full WordPress block editor runtime, making it fast and dependency-light.
+
+**Dynamic blocks**
+
+Dynamic blocks (`save()` returns null) skip Tier 2:
+- Validates the comment delimiter + attributes via Tier 1
 - Stores the self-closing format: `<!-- wp:namespace/block-name {"attrs":"here"} /-->`
 - Marks as `validation_status: 'attributes_only'` — WordPress accepts this format via REST API and renders the HTML server-side via PHP
 
-Only markup that passes validation is stored in the database. The confidence score reflects extraction quality; the validation status reflects markup correctness.
+**Validation statuses:**
+
+| Status | Meaning |
+|--------|---------|
+| `verified` | Passed both Tier 1 (structural) and Tier 2 (save patterns) |
+| `structural_only` | Passed Tier 1 but Tier 2 found HTML pattern issues |
+| `attributes_only` | Dynamic block — only comment delimiter and attributes validated |
+| `invalid` | Failed Tier 1 structural validation |
+
+The **confidence score** (0–100%) reflects extraction quality from the source code. The **validation status** reflects markup correctness. A block is marked `verified` at the block level when all its markup examples pass both tiers.
 
 ### Incremental Updates
 
