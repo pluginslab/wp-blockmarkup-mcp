@@ -25,7 +25,7 @@ export function parseSaveFile(blockPath) {
     return {
       hasCustomSave: false,
       returnsNull: true,
-      blockType: hasRenderPhp ? 'dynamic' : 'dynamic',
+      blockType: 'dynamic',
       wrapperElement: null,
       classPatterns: [],
       stylePatterns: [],
@@ -106,9 +106,9 @@ export function parseSaveFile(blockPath) {
 
     if (!foundSaveFunction) {
       result.returnsNull = true;
-      result.blockType = hasRenderPhp ? 'dynamic' : 'dynamic';
+      result.blockType = 'dynamic';
     } else if (result.returnsNull) {
-      result.blockType = hasRenderPhp ? 'dynamic' : 'dynamic';
+      result.blockType = 'dynamic';
     } else {
       result.hasCustomSave = true;
       result.blockType = hasRenderPhp ? 'hybrid' : 'static';
@@ -119,7 +119,7 @@ export function parseSaveFile(blockPath) {
     return {
       hasCustomSave: false,
       returnsNull: true,
-      blockType: hasRenderPhp ? 'dynamic' : 'dynamic',
+      blockType: 'dynamic',
       wrapperElement: null,
       classPatterns: [],
       stylePatterns: [],

@@ -1,16 +1,22 @@
 {
   "name": "wp-blockmarkup-mcp",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "MCP server that extracts, validates, and indexes Gutenberg block schemas and markup from any WordPress plugin",
   "type": "module",
   "bin": {
     "wp-blocks": "./src/cli.js",
     "wp-blockmarkup-mcp": "./src/mcp-server.js"
   },
+  "files": [
+    "src/",
+    "LICENSE",
+    "README.md"
+  ],
   "scripts": {
     "start": "node src/mcp-server.js",
     "cli": "node src/cli.js",
-    "test": "node --test tests/"
+    "test": "node --test tests/",
+    "lint": "eslint src/"
   },
   "keywords": [
     "wordpress",
@@ -19,10 +25,20 @@
     "mcp",
     "model-context-protocol",
     "ai",
-    "validation"
+    "validation",
+    "block-markup",
+    "woocommerce"
   ],
-  "author": "",
+  "author": "Marcel Schmitz",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pluginslab/wp-blockmarkup-mcp.git"
+  },
+  "homepage": "https://github.com/pluginslab/wp-blockmarkup-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/pluginslab/wp-blockmarkup-mcp/issues"
+  },
   "engines": {
     "node": ">=20.0.0"
   },
@@ -30,13 +46,18 @@
     "@babel/parser": "^7.26.3",
     "@babel/traverse": "^7.26.5",
     "@babel/types": "^7.26.3",
-    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@modelcontextprotocol/sdk": "^1.27.0",
     "@wordpress/block-serialization-default-parser": "^5.0.0",
     "better-sqlite3": "^11.0.0",
-    "browser-env": "^3.3.0",
     "commander": "^12.0.0",
     "fast-glob": "^3.3.3",
     "simple-git": "^3.22.0",
     "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@anthropic-ai/sdk": "^0.78.0",
+    "@google/generative-ai": "^0.24.1",
+    "dotenv": "^17.3.1",
+    "eslint": "^9.0.0"
   }
 }

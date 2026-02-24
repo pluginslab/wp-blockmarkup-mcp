@@ -3,6 +3,9 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 import {
   searchBlocksSchema, handleSearchBlocks,
   getBlockSchemaSchema, handleGetBlockSchema,
@@ -15,9 +18,12 @@ import {
 // Initialize DB on import (side effect)
 import { getDb } from './db.js';
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const pkg = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf-8'));
+
 const server = new McpServer({
   name: 'wp-blockmarkup-mcp',
-  version: '0.1.0',
+  version: pkg.version,
 });
 
 // Register tools

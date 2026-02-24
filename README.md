@@ -361,6 +361,71 @@ Together they cover both sides of WordPress AI assistance:
 
 Same source registration workflow. Same MCP integration. Complementary tools for the same AI assistant.
 
+## Theme-Aware Content Generation
+
+wp-blockmarkup-mcp knows **how to write blocks correctly** — schemas, attributes, markup format, validation. What it deliberately does not know is **what design tokens your theme provides** — colors, font sizes, spacing scales, gradients. Those come from `theme.json` and are different for every site.
+
+This is by design. Indexing themes alongside block schemas would mix site-specific data with universal block knowledge, producing suggestions with colors and fonts that don't exist in your theme.
+
+### How it works in practice
+
+The intended workflow pairs this MCP server with a WordPress site MCP that knows your active theme. The LLM sits on top and orchestrates both:
+
+```
+You: "Build a hero section with our brand colors, a heading, and a CTA to /pricing"
+
+LLM thinks:
+  1. Ask WordPress MCP → what colors does the active theme provide?
+     → learns: "primary" (#1a1a2e), "accent" (#e94560), font sizes sm/md/lg/xl
+  2. Ask wp-blockmarkup-mcp → search_blocks("cover"), get_block_schema("core/cover")
+     → learns: dimRatio, contentAlign, overlayColor attributes and correct markup format
+  3. Ask wp-blockmarkup-mcp → get_block_schema("core/buttons")
+     → learns: button block structure and nesting rules
+  4. Combine both → generates markup using "primary" slug (from theme)
+     with correct attribute names (from block schema)
+  5. Ask wp-blockmarkup-mcp → validate_markup(generated)
+     → confirms it's structurally correct
+```
+
+### MCP configuration
+
+Both servers are registered in your MCP client config. For Claude Code (`.mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "wp-blockmarkup": {
+      "command": "npx",
+      "args": ["--prefix", "/path/to/wp-blockmarkup-mcp", "wp-blockmarkup-mcp"]
+    },
+    "wordpress": {
+      "command": "wordpress-mcp",
+      "args": ["--url", "https://yoursite.com"]
+    }
+  }
+}
+```
+
+The LLM sees all tools from both servers and can reason about when to use each. To make the workflow explicit, add a `CLAUDE.md` to your project:
+
+```markdown
+## WordPress Content Generation
+
+When generating Gutenberg block markup:
+1. Use `wordpress.get_theme_settings` to get the active color palette,
+   font sizes, and spacing scale from theme.json
+2. Use `wp-blockmarkup.search_blocks` to find correct block names
+3. Use `wp-blockmarkup.get_block_schema` to verify attribute names and types
+4. Use theme-specific slugs (from step 1) for colors — not default palette values
+5. Use `wp-blockmarkup.validate_markup` before outputting final markup
+```
+
+### What the validator accepts
+
+The validation pipeline is already slug-agnostic. It checks that the JSON attributes and HTML classes **agree with each other** — not that color slugs come from a specific palette. If your markup says `backgroundColor: "primary"`, the validator checks that `has-primary-background-color` and `has-background` appear in the HTML classes. It doesn't care whether `"primary"` comes from WordPress defaults or your custom theme.
+
+This means markup generated with theme-specific tokens validates correctly without this tool needing any theme awareness.
+
 ## Requirements
 
 - Node.js 20+

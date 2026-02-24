@@ -87,7 +87,7 @@ async function fetchGithubPrivate(source) {
       await repoGit.remote(['set-url', 'origin', source.repo_url]);
     } catch (err) {
       // Clean up token from remote even on error
-      try { await repoGit.remote(['set-url', 'origin', source.repo_url]); } catch {}
+      try { await repoGit.remote(['set-url', 'origin', source.repo_url]); } catch { /* best-effort cleanup */ }
       console.error(`Warning: pull failed for ${source.name}: ${err.message}`);
     }
   } else {

@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 import { Command } from 'commander';
 import {
   addSource,
@@ -8,8 +11,6 @@ import {
   removeSource,
   searchBlocks,
   getBlockSchema,
-  getBlockMarkup,
-  searchVariations,
   getStats,
   rebuildFtsIndex,
   isSourceIndexed,
@@ -18,12 +19,15 @@ import {
 import { indexSources } from './indexer.js';
 import { validateStructural } from './validation/structural-validator.js';
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const pkg = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf-8'));
+
 const program = new Command();
 
 program
   .name('wp-blocks')
   .description('Gutenberg block markup indexer and search CLI')
-  .version('0.1.0');
+  .version(pkg.version);
 
 // --- source:add ---
 program

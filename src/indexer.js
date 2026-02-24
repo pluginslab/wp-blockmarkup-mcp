@@ -4,7 +4,7 @@
  */
 import fg from 'fast-glob';
 import { readFileSync, statSync } from 'node:fs';
-import { join, dirname, relative } from 'node:path';
+import { join, dirname } from 'node:path';
 import { createHash } from 'node:crypto';
 import { fetchSource } from './source-manager.js';
 import { parseBlockJson } from './parsers/block-json-parser.js';
@@ -16,6 +16,7 @@ import { validateMarkup } from './validation/index.js';
 import {
   listSources,
   getSource,
+  getBlockByName,
   upsertBlock,
   markBlocksRemoved,
   insertAttributes,
@@ -127,7 +128,6 @@ async function indexSource(source, localPath, force, stats) {
           // Find the existing block ID to track as active
           const blockJson = parseBlockJson(fullBlockDir);
           if (blockJson?.name) {
-            const { getBlockByName } = await import('./db.js');
             const existing = getBlockByName(blockJson.name);
             if (existing) activeBlockIds.push(existing.id);
           }

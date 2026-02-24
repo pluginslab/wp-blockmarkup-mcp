@@ -12,9 +12,3 @@ export function readJSON(filePath) {
 export function readFile(filePath) {
   return fs.readFileSync(filePath, 'utf-8');
 }
-
-export function getDirectories(dirPath) {
-  return fs.readdirSync(dirPath, { withFileTypes: true })
-    .filter(dirent => dirent.isDirectory())
-    .map(dirent => dirent.name);
-}

@@ -10,7 +10,7 @@ import { DEFAULT_COLORS, DEFAULT_FONT_SIZES } from './component-defaults.js';
  */
 export function generateMarkupExamples(blockData) {
   const examples = [];
-  const { blockJson, save } = blockData;
+  const { blockJson } = blockData;
 
   if (!blockJson || !blockJson.name) return examples;
 
