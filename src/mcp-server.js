@@ -1,14 +1,76 @@
 #!/usr/bin/env node
-/**
- * MCP server entry point for wp-blockmarkup-mcp
- *
- * Exposes tools over stdio:
- *   search_blocks         — Full-text search across indexed blocks
- *   get_block_schema      — Full attribute/support schema for a block
- *   get_block_markup      — Validated markup examples for a block
- *   validate_markup       — Validate raw block markup string
- *   list_block_attributes — All attributes for a block with types/defaults
- *   search_variations     — Search block variations by name/description
- */
 
-// TODO: Implement MCP server with @modelcontextprotocol/sdk
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+
+import {
+  searchBlocksSchema, handleSearchBlocks,
+  getBlockSchemaSchema, handleGetBlockSchema,
+  getBlockMarkupSchema, handleGetBlockMarkup,
+  validateMarkupSchema, handleValidateMarkup,
+  listBlockAttributesSchema, handleListBlockAttributes,
+  searchVariationsSchema, handleSearchVariations,
+} from './mcp/tools.js';
+
+// Initialize DB on import (side effect)
+import { getDb } from './db.js';
+
+const server = new McpServer({
+  name: 'wp-blockmarkup-mcp',
+  version: '0.1.0',
+});
+
+// Register tools
+server.tool(
+  searchBlocksSchema.name,
+  searchBlocksSchema.description,
+  searchBlocksSchema.inputSchema,
+  handleSearchBlocks,
+);
+
+server.tool(
+  getBlockSchemaSchema.name,
+  getBlockSchemaSchema.description,
+  getBlockSchemaSchema.inputSchema,
+  handleGetBlockSchema,
+);
+
+server.tool(
+  getBlockMarkupSchema.name,
+  getBlockMarkupSchema.description,
+  getBlockMarkupSchema.inputSchema,
+  handleGetBlockMarkup,
+);
+
+server.tool(
+  validateMarkupSchema.name,
+  validateMarkupSchema.description,
+  validateMarkupSchema.inputSchema,
+  handleValidateMarkup,
+);
+
+server.tool(
+  listBlockAttributesSchema.name,
+  listBlockAttributesSchema.description,
+  listBlockAttributesSchema.inputSchema,
+  handleListBlockAttributes,
+);
+
+server.tool(
+  searchVariationsSchema.name,
+  searchVariationsSchema.description,
+  searchVariationsSchema.inputSchema,
+  handleSearchVariations,
+);
+
+// Ensure DB is ready
+try {
+  getDb();
+} catch (err) {
+  process.stderr.write(`Failed to initialize database: ${err.message}\n`);
+  process.exit(1);
+}
+
+// Start
+const transport = new StdioServerTransport();
+await server.connect(transport);
