@@ -1,5 +1,9 @@
 # wp-blockmarkup-mcp
 
+<p align="center">
+  <img src="assets/banner.jpg" alt="Before: AI guessing hook names. After: Verified database, no more hallucinations." width="600">
+</p>
+
 **Give your AI assistant a verified block markup database instead of letting it guess Gutenberg HTML.**
 
 wp-blockmarkup-mcp is a local [MCP server](https://modelcontextprotocol.io/) that extracts, validates, and indexes every Gutenberg block from WordPress core, WooCommerce, or any block-based plugin you work with. It gives AI tools like Claude Code a verified database of block schemas, attributes, and validated markup examples to query — instead of relying on training data that hallucinates block structures, invents attributes, and produces markup that triggers "Attempt Block Recovery" in the editor.
