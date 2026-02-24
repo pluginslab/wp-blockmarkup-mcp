@@ -283,6 +283,11 @@ export function markBlocksRemoved(sourceId, activeBlockIds) {
   return tx();
 }
 
+export function updateBlockValidation(blockId, validationStatus) {
+  const db = getDb();
+  stmt(db, 'UPDATE blocks SET validation_status = ? WHERE id = ?').run(validationStatus, blockId);
+}
+
 export function getBlockByName(blockName) {
   const db = getDb();
   return stmt(db, `

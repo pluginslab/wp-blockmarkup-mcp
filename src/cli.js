@@ -16,6 +16,7 @@ import {
   closeDb,
 } from './db.js';
 import { indexSources } from './indexer.js';
+import { validateStructural } from './validation/structural-validator.js';
 
 const program = new Command();
 
@@ -282,6 +283,49 @@ program
     }
   });
 
+// --- validate ---
+program
+  .command('validate <markup>')
+  .description('Validate raw Gutenberg block markup (structural check + attribute verification)')
+  .action((markup) => {
+    try {
+      const result = validateStructural(markup);
+
+      if (result.valid) {
+        console.log('\nVALID — Structural validation passed.');
+      } else {
+        console.log(`\nINVALID — ${result.errors.length} error(s):`);
+        for (const err of result.errors) {
+          console.log(`  - ${err}`);
+        }
+      }
+
+      if (result.warnings.length > 0) {
+        console.log(`\nWarnings (${result.warnings.length}):`);
+        for (const w of result.warnings) {
+          console.log(`  - ${w}`);
+        }
+      }
+
+      if (result.parsedBlocks.length > 0) {
+        const blocks = result.parsedBlocks.filter(b => b.blockName !== null);
+        if (blocks.length > 0) {
+          console.log(`\nParsed ${blocks.length} block(s):`);
+          for (const b of blocks) {
+            console.log(`  - ${b.blockName} (${Object.keys(b.attrs || {}).length} attributes, ${b.innerBlocks.length} inner blocks)`);
+          }
+        }
+      }
+
+      console.log('');
+    } catch (err) {
+      console.error(`Error: ${err.message}`);
+      process.exit(1);
+    } finally {
+      closeDb();
+    }
+  });
+
 // --- rebuild-index ---
 program
   .command('rebuild-index')
@@ -310,6 +354,8 @@ function printIndexStats(stats) {
   console.log(`  Total attributes:   ${stats.total_attributes}`);
   console.log(`  Total variations:   ${stats.total_variations}`);
   console.log(`  Total examples:     ${stats.total_examples}`);
+  console.log(`  Verified examples:  ${stats.verified_examples || 0}`);
+  console.log(`  Structural only:    ${stats.structural_only_examples || 0}`);
 
   if (stats.errors.length > 0) {
     console.log(`\n  Errors (${stats.errors.length}):`);

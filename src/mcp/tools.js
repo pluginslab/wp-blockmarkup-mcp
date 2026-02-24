@@ -6,6 +6,7 @@ import {
   listBlockAttributes,
   searchVariations,
 } from '../db.js';
+import { validateStructural } from '../validation/structural-validator.js';
 
 // --- search_blocks ---
 
@@ -176,109 +177,45 @@ export const validateMarkupSchema = {
 
 export function handleValidateMarkup(args) {
   try {
-    // Parse the block comment to extract block name and attributes
-    const blockMatch = args.markup.match(/<!--\s+wp:([^\s{/]+)(?:\s+(\{[^}]*\}))?\s*(\/)?-->/);
+    // Use the real WordPress block parser for structural validation
+    const result = validateStructural(args.markup);
 
-    if (!blockMatch) {
-      return {
-        content: [{ type: 'text', text: 'INVALID — Could not parse block comment delimiter. Expected format: `<!-- wp:namespace/block-name {"attrs":"here"} -->`' }],
-      };
-    }
-
-    const blockName = blockMatch[1];
-    const attrsJson = blockMatch[2];
-    const selfClosing = blockMatch[3];
-
-    // Validate JSON attributes
-    let attrs = {};
-    if (attrsJson) {
-      try {
-        attrs = JSON.parse(attrsJson);
-      } catch {
-        return {
-          content: [{ type: 'text', text: `INVALID — Attribute JSON is malformed: ${attrsJson}` }],
-        };
+    if (!result.valid) {
+      let text = `INVALID — ${result.errors.length} error(s):\n${result.errors.map(e => `  - ${e}`).join('\n')}`;
+      if (result.warnings.length > 0) {
+        text += `\n\nWarnings:\n${result.warnings.map(w => `  - ${w}`).join('\n')}`;
       }
+      return { content: [{ type: 'text', text }] };
     }
 
-    // Check if block exists
-    const schema = getBlockSchema(blockName);
-    if (!schema) {
-      // Try with core/ prefix
-      const coreSchema = getBlockSchema(`core/${blockName}`);
-      if (coreSchema) {
-        return validateAgainstSchema(coreSchema, attrs, selfClosing, args.markup);
-      }
-      return {
-        content: [{ type: 'text', text: `UNKNOWN BLOCK — "${blockName}" is not in any indexed source. The markup structure looks valid but the block cannot be verified.` }],
-      };
+    // Extract block names from parsed output
+    const blocks = result.parsedBlocks.filter(b => b.blockName !== null);
+    const blockNames = blocks.map(b => b.blockName);
+
+    // Check block types for status
+    const schemas = blockNames.map(name => getBlockSchema(name)).filter(Boolean);
+    const allDynamic = schemas.length > 0 && schemas.every(s => s.block_type === 'dynamic');
+
+    let status;
+    if (allDynamic) {
+      status = 'VALID (attributes only — dynamic block)';
+    } else if (result.warnings.length > 0) {
+      status = 'VALID (with warnings)';
+    } else {
+      status = 'VALID';
     }
 
-    return validateAgainstSchema(schema, attrs, selfClosing, args.markup);
+    let text = `${status} — Markup passes structural validation using the WordPress block parser.`;
+    text += `\n\nBlocks found: ${blockNames.join(', ')}`;
+
+    if (result.warnings.length > 0) {
+      text += `\n\nWarnings:\n${result.warnings.map(w => `  - ${w}`).join('\n')}`;
+    }
+
+    return { content: [{ type: 'text', text }] };
   } catch (err) {
     return { content: [{ type: 'text', text: `Error validating markup: ${err.message}` }], isError: true };
   }
-}
-
-function validateAgainstSchema(schema, attrs, selfClosing, markup) {
-  const issues = [];
-  const warnings = [];
-
-  // Check if dynamic block uses self-closing format correctly
-  if (schema.block_type === 'dynamic' && !selfClosing) {
-    warnings.push('Dynamic block has inner HTML content — this is valid but WordPress renders the output server-side, so the inner HTML may be ignored.');
-  }
-
-  // Check attribute names against schema
-  const knownAttrs = new Set(schema.attributes.map(a => a.name));
-  // Add common block-level attributes that aren't in block.json
-  knownAttrs.add('className');
-  knownAttrs.add('anchor');
-  knownAttrs.add('style');
-  knownAttrs.add('backgroundColor');
-  knownAttrs.add('textColor');
-  knownAttrs.add('gradient');
-  knownAttrs.add('fontSize');
-  knownAttrs.add('fontFamily');
-  knownAttrs.add('align');
-  knownAttrs.add('lock');
-
-  for (const key of Object.keys(attrs)) {
-    if (!knownAttrs.has(key)) {
-      issues.push(`Unknown attribute "${key}" — not found in ${schema.block_name} schema`);
-    }
-  }
-
-  // Check attribute types
-  for (const schemaAttr of schema.attributes) {
-    if (attrs[schemaAttr.name] !== undefined && schemaAttr.type) {
-      const value = attrs[schemaAttr.name];
-      const expectedType = schemaAttr.type;
-      const actualType = Array.isArray(value) ? 'array' : typeof value;
-
-      // Simple type check (type can be compound like "string|boolean")
-      const allowedTypes = expectedType.split('|');
-      if (!allowedTypes.includes(actualType) && expectedType !== 'rich-text' && expectedType !== 'unknown') {
-        issues.push(`Attribute "${schemaAttr.name}" expected type ${expectedType}, got ${actualType}`);
-      }
-    }
-  }
-
-  // Check closing comment
-  if (!selfClosing && !markup.includes(`<!-- /wp:`)) {
-    issues.push('Missing closing comment delimiter (<!-- /wp:block-name -->)');
-  }
-
-  if (issues.length === 0) {
-    const status = schema.block_type === 'dynamic' ? 'VALID (attributes only — dynamic block)' : 'VALID';
-    let text = `${status} — Block "${schema.block_name}" markup passes structural validation.`;
-    if (warnings.length > 0) text += `\n\nWarnings:\n${warnings.map(w => `  - ${w}`).join('\n')}`;
-    return { content: [{ type: 'text', text }] };
-  }
-
-  let text = `ISSUES FOUND — Block "${schema.block_name}" markup has ${issues.length} issue(s):\n${issues.map(i => `  - ${i}`).join('\n')}`;
-  if (warnings.length > 0) text += `\n\nWarnings:\n${warnings.map(w => `  - ${w}`).join('\n')}`;
-  return { content: [{ type: 'text', text }] };
 }
 
 // --- list_block_attributes ---

@@ -12,6 +12,7 @@ import { parseEditFile } from './parsers/edit-parser.js';
 import { parseSaveFile } from './parsers/save-parser.js';
 import { parseVariationsFile } from './parsers/variations-parser.js';
 import { generateMarkupExamples, generateDynamicMarkup } from './utils/markup-generator.js';
+import { validateMarkup } from './validation/index.js';
 import {
   listSources,
   getSource,
@@ -23,6 +24,7 @@ import {
   insertVariation,
   getIndexedFile,
   upsertIndexedFile,
+  updateBlockValidation,
 } from './db.js';
 
 const IGNORE_PATTERNS = [
@@ -72,6 +74,8 @@ export async function indexSources(opts = {}) {
     total_attributes: 0,
     total_variations: 0,
     total_examples: 0,
+    verified_examples: 0,
+    structural_only_examples: 0,
     errors: [],
   };
 
@@ -205,7 +209,10 @@ async function indexSource(source, localPath, force, stats) {
         }
       }
 
-      // Generate and insert markup examples
+      // Generate, validate, and insert markup examples
+      let blockValidationStatus = 'unverified';
+      const exampleStatuses = [];
+
       if (blockType === 'dynamic') {
         // Dynamic blocks: store self-closing comment markup
         const dynMarkup = generateDynamicMarkup(blockData.blockJson.name);
@@ -219,22 +226,60 @@ async function indexSource(source, localPath, force, stats) {
           features_used: [],
         });
         stats.total_examples++;
+        blockValidationStatus = 'attributes_only';
       } else {
-        // Static/hybrid blocks: generate markup examples
+        // Static/hybrid blocks: generate markup examples, validate each
         const examples = generateMarkupExamples(blockData);
+        // Build a minimal schema object for validation
+        const schemaForValidation = {
+          block_name: blockData.blockJson.name,
+          block_type: blockType,
+          attributes: Object.entries(blockData.blockJson.attributes || {}).map(([name, attr]) => ({
+            name,
+            type: Array.isArray(attr.type) ? attr.type.join('|') : (attr.type || null),
+            enum_values: attr.enum ? JSON.stringify(attr.enum) : null,
+          })),
+          supports: Object.entries(blockData.blockJson.supports || {}).map(([feature, config]) => ({
+            feature,
+            config: JSON.stringify(config),
+          })),
+        };
+
         for (const example of examples) {
+          // Run validation pipeline
+          let validationStatus = 'unverified';
+          try {
+            const result = validateMarkup(example.markup, schemaForValidation, blockData.save);
+            validationStatus = result.status;
+            if (validationStatus === 'verified') stats.verified_examples++;
+            else if (validationStatus === 'structural_only') stats.structural_only_examples++;
+          } catch {
+            // Validation failed — leave as unverified
+          }
+
+          exampleStatuses.push(validationStatus);
           insertMarkupExample({
             block_id: blockId,
             title: example.title,
             description: example.description,
             markup: example.markup,
             attributes_json: JSON.stringify(example.attributes),
-            validation_status: 'unverified',
+            validation_status: validationStatus,
             features_used: example.features,
           });
           stats.total_examples++;
         }
+
+        // Determine block-level validation status from examples
+        if (exampleStatuses.length > 0 && exampleStatuses.every(s => s === 'verified')) {
+          blockValidationStatus = 'verified';
+        } else if (exampleStatuses.some(s => s === 'verified')) {
+          blockValidationStatus = 'structural_only';
+        }
       }
+
+      // Update block-level validation status
+      updateBlockValidation(blockId, blockValidationStatus);
 
       // Track this block directory as indexed
       const blockStat = statSync(join(fullBlockDir, 'block.json'));
