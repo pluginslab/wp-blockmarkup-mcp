@@ -1,0 +1,40 @@
+{
+  "name": "wp-blockmarkup-mcp",
+  "version": "0.1.0",
+  "description": "MCP server that extracts, validates, and indexes Gutenberg block schemas and markup from any WordPress plugin",
+  "type": "module",
+  "bin": {
+    "wp-blocks": "./src/cli.js",
+    "wp-blockmarkup-mcp": "./src/mcp-server.js"
+  },
+  "scripts": {
+    "start": "node src/mcp-server.js",
+    "cli": "node src/cli.js",
+    "test": "node --test tests/"
+  },
+  "keywords": [
+    "wordpress",
+    "gutenberg",
+    "blocks",
+    "mcp",
+    "model-context-protocol",
+    "ai",
+    "validation"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@babel/parser": "^7.26.3",
+    "@babel/traverse": "^7.26.5",
+    "@babel/types": "^7.26.3",
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@wordpress/block-serialization-default-parser": "^5.0.0",
+    "better-sqlite3": "^11.0.0",
+    "browser-env": "^3.3.0",
+    "commander": "^12.0.0",
+    "simple-git": "^3.22.0"
+  }
+}
