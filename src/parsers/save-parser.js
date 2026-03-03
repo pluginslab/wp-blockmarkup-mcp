@@ -152,8 +152,11 @@ function analyzeJSXStructure(jsxNode, result) {
   const elementName = getJSXElementName(jsxNode);
 
   if (elementName && !elementName.includes('.')) {
-    // HTML element — use as wrapper if first one found
-    if (!result.wrapperElement) result.wrapperElement = elementName;
+    // In JSX, lowercase names are HTML elements; uppercase are component/variable references.
+    // Only use actual HTML elements as the wrapper (e.g., 'div', 'p', 'h2').
+    // Skip variable names like 'Tag', 'TagName', 'RichText', etc.
+    const isHtmlElement = elementName[0] === elementName[0].toLowerCase();
+    if (isHtmlElement && !result.wrapperElement) result.wrapperElement = elementName;
   }
 
   if (elementName && elementName.includes('InnerBlocks')) {

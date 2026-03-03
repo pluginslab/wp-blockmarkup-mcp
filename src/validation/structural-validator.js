@@ -115,9 +115,44 @@ function validateAttributes(schema, attrs, errors, warnings) {
   // Add common block-level attributes that aren't in block.json
   const globalAttrs = [
     'className', 'anchor', 'style', 'backgroundColor', 'textColor',
-    'gradient', 'fontSize', 'fontFamily', 'align', 'lock',
+    'gradient', 'fontSize', 'fontFamily', 'align', 'lock', 'metadata',
   ];
   for (const ga of globalAttrs) knownAttrs.add(ga);
+
+  // Derive implicit attributes from block supports configuration
+  if (schema.supports && Array.isArray(schema.supports)) {
+    for (const support of schema.supports) {
+      const feature = support.feature;
+      let config;
+      try { config = typeof support.config === 'string' ? JSON.parse(support.config) : support.config; }
+      catch { continue; }
+
+      // Typography supports can imply textAlign, lineHeight, etc.
+      if (feature === 'typography') {
+        if (config?.textAlign !== false) knownAttrs.add('textAlign');
+      }
+      // Layout support implies layout attribute
+      if (feature === 'layout') {
+        knownAttrs.add('layout');
+      }
+      // Color support implies individual color attributes
+      if (feature === 'color') {
+        if (config?.link) knownAttrs.add('linkColor');
+      }
+      // Spacing support implies blockGap etc.
+      if (feature === 'spacing') {
+        if (config?.blockGap !== false) knownAttrs.add('blockGap');
+      }
+      // Border support implies borderColor
+      if (feature === 'border') {
+        knownAttrs.add('borderColor');
+      }
+      // Position support
+      if (feature === 'position') {
+        knownAttrs.add('position');
+      }
+    }
+  }
 
   // Check for unknown attribute names
   for (const key of Object.keys(attrs)) {

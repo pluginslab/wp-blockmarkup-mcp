@@ -79,7 +79,22 @@ export function generateMarkupExamples(blockData) {
 }
 
 function getWrapper(blockData) {
-  return blockData.save?.wrapperElement || 'div';
+  if (blockData.save?.wrapperElement) return blockData.save.wrapperElement;
+
+  // Block-specific defaults for blocks whose save.js uses variable wrapper elements
+  // (e.g., core/heading uses <TagName> which resolves to h1-h6 at runtime)
+  const blockName = blockData.blockJson?.name;
+  const wrapperDefaults = {
+    'core/heading': 'h2',
+    'core/button': 'div',
+    'core/list': 'ul',
+    'core/list-item': 'li',
+    'core/quote': 'blockquote',
+    'core/pullquote': 'figure',
+    'core/verse': 'pre',
+  };
+
+  return wrapperDefaults[blockName] || 'div';
 }
 
 function getBlockClass(blockName) {
