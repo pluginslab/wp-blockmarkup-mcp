@@ -1,11 +1,11 @@
 {
   "name": "wp-blockmarkup-mcp",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "MCP server that extracts, validates, and indexes Gutenberg block schemas and markup from any WordPress plugin",
   "type": "module",
   "bin": {
-    "wp-blocks": "./src/cli.js",
-    "wp-blockmarkup-mcp": "./src/mcp-server.js"
+    "wp-blocks": "src/cli.js",
+    "wp-blockmarkup-mcp": "src/mcp-server.js"
   },
   "files": [
     "src/",

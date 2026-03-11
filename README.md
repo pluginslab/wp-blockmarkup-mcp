@@ -63,11 +63,16 @@ No "Attempt Block Recovery". No broken pages. No guessing.
 
 ## Quick Start
 
+### Install
+
 ```bash
-# Clone and install
-git clone https://github.com/pluginslab/wp-blockmarkup-mcp.git
-cd wp-blockmarkup-mcp
-npm install
+npm install -g wp-blockmarkup-mcp
+```
+
+Or run directly with npx (no install needed):
+
+```bash
+npx wp-blockmarkup-mcp
 ```
 
 ### Index Your First Source
@@ -76,7 +81,7 @@ Each `source:add` command clones the repo and indexes it automatically:
 
 ```bash
 # WordPress Gutenberg core blocks (121 blocks)
-npx wp-blocks source:add \
+wp-blocks source:add \
   --name gutenberg \
   --type github-public \
   --repo https://github.com/WordPress/gutenberg \
@@ -94,7 +99,7 @@ Add the MCP server to your Claude Code configuration. Create or edit `.mcp.json`
   "mcpServers": {
     "wp-blockmarkup": {
       "command": "npx",
-      "args": ["--prefix", "/absolute/path/to/wp-blockmarkup-mcp", "wp-blockmarkup-mcp"]
+      "args": ["wp-blockmarkup-mcp"]
     }
   }
 }
