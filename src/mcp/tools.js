@@ -169,7 +169,7 @@ export function handleGetBlockMarkup(args) {
 
 export const validateMarkupSchema = {
   name: 'validate_markup',
-  description: 'Validate raw Gutenberg block markup. Checks structural format (comment delimiters, JSON attributes) and verifies the block name exists in indexed sources. For static blocks, checks attribute names/types against the block schema.',
+  description: 'Validate raw Gutenberg block markup. Checks structural format (comment delimiters, JSON attributes) and verifies the block name exists in indexed sources. For static blocks, checks attribute names/types against the block schema. Also catches preset reference mismatches where var:preset|group|slug expands to a non-kebab CSS variable in inline style (a common cause of editor "block recovery" prompts).',
   inputSchema: {
     markup: z.string().describe('Raw Gutenberg block markup string to validate'),
   },

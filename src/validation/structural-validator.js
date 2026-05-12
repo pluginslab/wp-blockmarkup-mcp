@@ -15,6 +15,7 @@
  */
 import { parse as wpParse } from '@wordpress/block-serialization-default-parser';
 import { getBlockSchema } from '../db.js';
+import { validatePresetReferences } from './preset-reference-validator.js';
 
 /**
  * Validate markup structurally using the WordPress block parser.
@@ -61,6 +62,11 @@ export function validateStructural(markup) {
   for (const block of realBlocks) {
     validateBlock(block, errors, warnings);
   }
+
+  // Additive pass: preset slug -> inline CSS variable kebab-case check.
+  // Catches the "block recovery loop" footgun in hand-authored pattern files.
+  const presetResult = validatePresetReferences(realBlocks);
+  warnings.push(...presetResult.warnings);
 
   return {
     valid: errors.length === 0,
