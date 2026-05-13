@@ -105,7 +105,43 @@ Add the MCP server to your Claude Code configuration. Create or edit `.mcp.json`
 }
 ```
 
+This floats on whatever version `npx` has cached locally (see [Updating](#updating) for trade-offs and how to pin).
+
 Now when you ask Claude Code to generate WordPress content with Gutenberg blocks, it will automatically search block schemas and validate markup against your indexed sources.
+
+### Updating
+
+`npx wp-blockmarkup-mcp` caches the package by `(name + args)` hash in `~/.npm/_npx/` and reuses that cache on every invocation — it does **not** automatically pick up new versions. There are two ways to update, and a final step you can't skip either way:
+
+**Option A — float on latest (simple, manual refresh):**
+
+```bash
+# Clear the npx cache for this package, then restart the MCP server.
+npm cache clean --force        # or: rm -rf ~/.npm/_npx
+```
+
+If you installed globally instead (`npm install -g`):
+
+```bash
+npm update -g wp-blockmarkup-mcp
+```
+
+**Option B — pin the version (reproducible, intentional upgrades):**
+
+```json
+{
+  "mcpServers": {
+    "wp-blockmarkup": {
+      "command": "npx",
+      "args": ["-y", "wp-blockmarkup-mcp@1.1.1"]
+    }
+  }
+}
+```
+
+Bump the pinned version when you want the new release.
+
+**Either way, restart the MCP server** — the running stdio process holds the old code in memory until it's restarted. In Claude Code: `/mcp` → reconnect `wp-blockmarkup`, or restart Claude Code entirely.
 
 ## Indexing Sources
 

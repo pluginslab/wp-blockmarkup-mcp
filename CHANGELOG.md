@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.1.1] - 2026-05-13
+
+### Docs
+- Add an **Updating** section to the README covering npx caching, the global-install path, version pinning, and the requirement to restart the MCP server after upgrades. Closes a real gap users hit silently: `npx wp-blockmarkup-mcp` caches by `(package + args)` hash and never refreshes, so anyone who installed at an older version would silently stay on it.
+
 ## [1.1.0] - 2026-05-12
 
 ### Added
