@@ -1,12 +1,70 @@
-import Database from 'better-sqlite3';
+import { execSync } from 'node:child_process';
+import { createRequire } from 'node:module';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { DB_PATH } from './constants.js';
+
+const _require = createRequire(import.meta.url);
+
+// ---------------------------------------------------------------------------
+// Lazy-load better-sqlite3 with automatic recovery when the native binary is
+// missing (common on new Node versions, macOS, or when npm >= 11 blocks the
+// prebuild-install script during npm install).
+// ---------------------------------------------------------------------------
+function getBetterSqlite3() {
+  try {
+    return _require('better-sqlite3');
+  } catch (err) {
+    if (!err.message || !err.message.includes('Could not locate the bindings file')) {
+      throw err;
+    }
+
+    const bsPkgPath = _require.resolve('better-sqlite3/package.json');
+    const bsDir = dirname(bsPkgPath);
+
+    console.error('[wp-blockmarkup-mcp] better-sqlite3 native bindings not found.');
+    console.error('[wp-blockmarkup-mcp] Attempting to download or build them automatically...');
+
+    // Try prebuild-install first (downloads prebuilt binary for this platform)
+    try {
+      execSync('npx --yes prebuild-install', {
+        cwd: bsDir,
+        stdio: 'inherit',
+        timeout: 120_000,
+      });
+    } catch (_prebuildErr) {
+      // No prebuilt binary — compile from source instead
+      console.error('[wp-blockmarkup-mcp] Prebuilt binary not available for this platform.');
+      console.error('[wp-blockmarkup-mcp] Compiling from source (may take a minute)...');
+      try {
+        execSync('npx --yes node-gyp rebuild --release', {
+          cwd: bsDir,
+          stdio: 'inherit',
+          timeout: 300_000,
+        });
+      } catch (_gypErr) {
+        console.error('[wp-blockmarkup-mcp] Automatic rebuild failed.');
+        console.error('');
+        console.error('  Make sure your system has C++ build tools:');
+        console.error('    macOS: xcode-select --install');
+        console.error('    Linux: apt install build-essential python3');
+        console.error('    Windows: npm install --global windows-build-tools');
+        console.error('');
+        console.error('  Then run: npm rebuild better-sqlite3');
+        throw err; // Throw the original "bindings not found" error
+      }
+    }
+
+    // Retry after rebuild
+    return _require('better-sqlite3');
+  }
+}
 
 let db;
 
 export function getDb() {
   if (!db) {
+    const Database = getBetterSqlite3();
     mkdirSync(dirname(DB_PATH), { recursive: true });
     db = new Database(DB_PATH);
     db.pragma('journal_mode = WAL');
