@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+- **Index `.jsx`, `.ts` and `.tsx` block sources.** The save, edit and variations parsers only looked for `save.js`, `edit.js` and `variations.js`. Gutenberg renamed its JSX-bearing block sources to `.jsx` in [WordPress/gutenberg#80990](https://github.com/WordPress/gutenberg/pull/80990) (August 2026), so indexing Gutenberg `trunk` silently classified all 116 core blocks as dynamic, with 0 verified examples, and dropped every inspector control. Sources are now resolved in the order `.js`, `.jsx`, `.ts`, `.tsx`. On Gutenberg `trunk` the index goes from 0 to 54 static blocks and from 0 to 256 verified examples. Sources that only ship `.js` files (WordPress 7.1 and earlier) produce the same index and the same content hashes as before, so they are not re-indexed; stale `trunk` indexes are repaired by a plain `wp-blocks index`, no `--force` needed.
+
 ## [1.1.1] - 2026-05-13
 
 ### Docs

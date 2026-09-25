@@ -4,7 +4,7 @@
  */
 import fg from 'fast-glob';
 import { readFileSync, statSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { join, dirname, basename } from 'node:path';
 import { createHash } from 'node:crypto';
 import { fetchSource } from './source-manager.js';
 import { parseBlockJson } from './parsers/block-json-parser.js';
@@ -12,6 +12,7 @@ import { parseEditFile } from './parsers/edit-parser.js';
 import { parseSaveFile } from './parsers/save-parser.js';
 import { parseVariationsFile } from './parsers/variations-parser.js';
 import { generateMarkupExamples, generateDynamicMarkup } from './utils/markup-generator.js';
+import { resolveSourceFile } from './utils/file-utils.js';
 import { validateMarkup } from './validation/index.js';
 import {
   listSources,
@@ -118,7 +119,7 @@ async function indexSource(source, localPath, force, stats) {
     const fullBlockDir = join(localPath, blockDir);
 
     try {
-      // Compute content hash for the block directory (block.json + save.js + edit.js + variations.js)
+      // Compute content hash for the block directory (block.json + save, edit and variations sources)
       const dirHash = computeBlockDirHash(fullBlockDir);
 
       // Incremental skip
@@ -345,20 +346,25 @@ function calculateConfidence(blockData) {
 
 /**
  * Compute a content hash for a block directory.
- * Hashes the contents of key files: block.json, save.js, edit.js, variations.js
+ * Hashes the contents of key files: block.json, and the save, edit and
+ * variations sources whatever their extension (.js, .jsx, .ts, .tsx).
  */
 function computeBlockDirHash(blockDir) {
   const hash = createHash('sha256');
-  const files = ['block.json', 'save.js', 'edit.js', 'variations.js'];
+  const files = [
+    join(blockDir, 'block.json'),
+    ...['save', 'edit', 'variations'].map(
+      (base) => resolveSourceFile(blockDir, base) ?? join(blockDir, `${base}.js`)
+    ),
+  ];
 
-  for (const file of files) {
-    const fullPath = join(blockDir, file);
+  for (const fullPath of files) {
     try {
       const content = readFileSync(fullPath, 'utf-8');
       hash.update(content);
     } catch {
       // File doesn't exist — that's fine, hash the absence
-      hash.update(`__missing__${file}`);
+      hash.update(`__missing__${basename(fullPath)}`);
     }
   }
 

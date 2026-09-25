@@ -4,7 +4,7 @@
 import { parse } from '@babel/parser';
 import traverse from '@babel/traverse';
 import * as t from '@babel/types';
-import { readFile, fileExists } from '../utils/file-utils.js';
+import { readFile, resolveSourceFile } from '../utils/file-utils.js';
 
 /**
  * Parse a variations.js file and return extracted variations.
@@ -12,9 +12,9 @@ import { readFile, fileExists } from '../utils/file-utils.js';
  * @returns {object[]}
  */
 export function parseVariationsFile(blockPath) {
-  const variationsPath = `${blockPath}/variations.js`;
+  const variationsPath = resolveSourceFile(blockPath, 'variations');
 
-  if (!fileExists(variationsPath)) {
+  if (!variationsPath) {
     return [];
   }
 

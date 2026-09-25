@@ -4,7 +4,7 @@
 import { parse } from '@babel/parser';
 import traverse from '@babel/traverse';
 import * as t from '@babel/types';
-import { readFile, fileExists } from '../utils/file-utils.js';
+import { readFile, resolveSourceFile } from '../utils/file-utils.js';
 
 const CONTROL_PATTERNS = {
   AlignmentControl: { attribute: 'align', possibleValues: ['left', 'center', 'right', 'justify'] },
@@ -31,9 +31,9 @@ const CONTROL_PATTERNS = {
  * @returns {{ controls: object[], imports: object[] }}
  */
 export function parseEditFile(blockPath) {
-  const editPath = `${blockPath}/edit.js`;
+  const editPath = resolveSourceFile(blockPath, 'edit');
 
-  if (!fileExists(editPath)) {
+  if (!editPath) {
     return { controls: [], imports: [] };
   }
 

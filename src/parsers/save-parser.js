@@ -9,7 +9,7 @@
 import { parse } from '@babel/parser';
 import traverse from '@babel/traverse';
 import * as t from '@babel/types';
-import { readFile, fileExists } from '../utils/file-utils.js';
+import { readFile, fileExists, resolveSourceFile } from '../utils/file-utils.js';
 
 /**
  * Parse a save.js file and return HTML output patterns.
@@ -17,11 +17,11 @@ import { readFile, fileExists } from '../utils/file-utils.js';
  * @returns {object}
  */
 export function parseSaveFile(blockPath) {
-  const savePath = `${blockPath}/save.js`;
+  const savePath = resolveSourceFile(blockPath, 'save');
   const hasRenderPhp = fileExists(`${blockPath}/render.php`);
 
-  if (!fileExists(savePath)) {
-    // No save.js — dynamic block if render.php exists, otherwise unknown
+  if (!savePath) {
+    // No save file — dynamic block if render.php exists, otherwise unknown
     return {
       hasCustomSave: false,
       returnsNull: true,
