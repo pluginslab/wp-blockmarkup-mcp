@@ -473,7 +473,7 @@ This means markup generated with theme-specific tokens validates correctly witho
 
 ## Requirements
 
-- Node.js 20+
+- Node.js 22+
 - ~500MB disk space per large plugin source (Gutenberg, WooCommerce)
 
 ## License
